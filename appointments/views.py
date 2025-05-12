@@ -10,11 +10,10 @@ from .serializers import (
     DentistScheduleSerializer, 
     DentistTimeOffSerializer
 )
-from accounts.permissions import (
-    IsAdminUser, 
+from accounts.permissions import ( 
     IsDentistUser, 
     IsCustomerUser, 
-    IsStaffUser
+    IsStaffUser, IsStaffOrAdmin, IsDentistOrAdmin
 )
 
 
@@ -27,11 +26,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action == 'list':
-            permission_classes = [IsAdminUser | IsStaffUser | IsDentistUser]
+            permission_classes = [IsStaffOrAdmin | IsDentistUser]
         elif self.action == 'create':
             permission_classes = [IsCustomerUser | IsStaffUser]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdminUser | IsStaffUser]
+            permission_classes = [IsStaffOrAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -62,7 +61,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['patch'], permission_classes=[IsStaffUser | IsAdminUser])
+    @action(detail=True, methods=['patch'], permission_classes=[IsStaffOrAdmin])
     def update_status(self, request, pk=None):
         """Update appointment status."""
         try:
@@ -98,7 +97,7 @@ class DentistScheduleViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [permissions.IsAuthenticated]
         else:
-            permission_classes = [IsAdminUser | IsDentistUser]
+            permission_classes = [IsDentistOrAdmin]
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
@@ -112,7 +111,7 @@ class DentistScheduleViewSet(viewsets.ModelViewSet):
         
         return DentistSchedule.objects.none()
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser | IsDentistUser])
+    @action(detail=False, methods=['get'], permission_classes=[IsDentistOrAdmin])
     def availability(self, request):
         """Get available time slots for a given date."""
         date_str = request.query_params.get('date')
@@ -195,9 +194,9 @@ class DentistTimeOffViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAdminUser | IsDentistUser]
+            permission_classes = [permissions.IsAuthenticated]
         else:
-            permission_classes = [IsAdminUser | IsDentistUser]
+            permission_classes = [IsDentistOrAdmin]
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):

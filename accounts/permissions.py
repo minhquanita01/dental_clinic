@@ -1,8 +1,8 @@
-from rest_framework import permissions
+from rest_framework.permissions import BasePermission
 from .models import User
 
 
-class IsAdminUser(permissions.BasePermission):
+class IsAdminUser(BasePermission):
     """
     Permission to allow only admin users.
     """
@@ -10,7 +10,7 @@ class IsAdminUser(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.user_type == User.UserType.ADMIN
 
 
-class IsDentistUser(permissions.BasePermission):
+class IsDentistUser(BasePermission):
     """
     Permission to allow only dentist users.
     """
@@ -18,15 +18,35 @@ class IsDentistUser(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.user_type == User.UserType.DENTIST
 
 
-class IsStaffUser(permissions.BasePermission):
+class IsStaffUser(BasePermission):
     """
     Permission to allow only staff users.
     """
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.user_type == User.UserType.STAFF
 
+class IsStaffOrAdmin(BasePermission):
+    """
+    Cho phép chỉ nhân viên và quản trị viên truy cập.
+    """
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and (
+            request.user.user_type == User.UserType.STAFF or 
+            request.user.user_type == User.UserType.ADMIN
+        )
 
-class IsCustomerUser(permissions.BasePermission):
+class IsDentistOrAdmin(BasePermission):
+    """
+    Cho phép chỉ nha sĩ và quản trị viên truy cập.
+    """
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and (
+            request.user.user_type == User.UserType.DENTIST or 
+            request.user.user_type == User.UserType.ADMIN
+        )
+
+
+class IsCustomerUser(BasePermission):
     """
     Permission to allow only customer users.
     """
@@ -34,7 +54,7 @@ class IsCustomerUser(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.user_type == User.UserType.CUSTOMER
 
 
-class IsSameUserOrAdmin(permissions.BasePermission):
+class IsSameUserOrAdmin(BasePermission):
     """
     Permission to allow users to access only their own resources,
     or admin users to access any resource.
