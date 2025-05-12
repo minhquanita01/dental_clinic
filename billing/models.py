@@ -94,3 +94,34 @@ class Payment(models.Model):
     )
     payment_date = models.DateTimeField(_('Ngày thanh toán'), auto_now_add=True)
     amount = models.DecimalField(_('Số tiền'), max_digits=12, decimal_places=0)
+    payment_method = models.CharField(
+        _('Phương thức thanh toán'),
+        max_length=20,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CASH
+    )
+    reference_number = models.CharField(_('Số tham chiếu'), max_length=100, blank=True)
+    staff = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='processed_payments',
+        limit_choices_to={'user_type__in': [User.UserType.STAFF, User.UserType.ADMIN]}
+    )
+    notes = models.TextField(_('Ghi chú'), blank=True)
+    
+    class Meta:
+        verbose_name = _('Thanh toán')
+        verbose_name_plural = _('Thanh toán')
+        ordering = ['-payment_date']
+    
+    def __str__(self):
+        return f"Thanh toán: {self.invoice.invoice_number} - {self.amount}"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        
+        # Check if invoice is fully paid
+        total_payments = sum(payment.amount for payment in self.invoice.payments.all())
+        if total_payments >= self.invoice.total:
+            self.invoice.status = Invoice.InvoiceStatus.PAID
+            self.invoice.save()
