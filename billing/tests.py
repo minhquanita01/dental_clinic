@@ -5,6 +5,7 @@ from rest_framework.test import APIClient
 
 from decimal import Decimal
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from accounts.models import User
 from medical_records.models import MedicalRecord, Examination, DentalService, ExaminationService
@@ -72,17 +73,23 @@ class InvoiceAPITestCase(TestCase):
             quantity=1,
             price=200000
         )
-        
-        # Tạo hóa đơn
-        self.invoice = Invoice.objects.create(
-            examination=self.examination,
-            patient=self.patient,
-            staff=self.staff,
-            invoice_number='INV-000001',
-            status=Invoice.InvoiceStatus.PENDING,
-            discount=0,
-            tax=0
-        )
+
+        # Sử dụng patch để ghi đè hàm tạo số hóa đơn
+        with patch('billing.models.Invoice.generate_invoice_number') as mock_generate:
+            # Trả về số hóa đơn duy nhất cho mỗi lần test
+            mock_generate.return_value = f"INV-TEST-{self._testMethodName}"
+            
+            # Bây giờ việc tạo hóa đơn sẽ sử dụng hàm tạo số hóa đơn đã được ghi đè
+            self.invoice = Invoice.objects.create(
+                examination=self.examination,
+                patient=self.patient,
+                staff=self.staff,
+                status=Invoice.InvoiceStatus.PENDING,
+                discount=0,
+                tax=0
+            )
+
+        # Tính toán tổng tiền hóa đơn
         self.invoice.calculate_totals()
         
         # Tạo client API
@@ -107,10 +114,19 @@ class InvoiceAPITestCase(TestCase):
         url = reverse('invoice-list')
         self.client.force_authenticate(user=self.staff)
         
+        # Tạo một lần khám mới cho invoice mới
+        new_examination = Examination.objects.create(
+            medical_record=self.medical_record,
+            dentist=self.dentist,
+            examination_date=date.today() - timedelta(days=1),  # Ngày khác để tránh trùng lặp
+            diagnosis='Dental check',
+            treatment_plan='No treatment needed'
+        )
+        
         data = {
-            'examination': self.examination.id,
+            'examination': new_examination.id,
             'patient': self.patient.id,
-            'invoice_number': 'INV-000002',
+            'invoice_number': f'INV-000042-{self._testMethodName}',  # Đảm bảo duy nhất
             'status': Invoice.InvoiceStatus.PENDING,
             'discount': 10000,
             'tax': 5000,
@@ -152,53 +168,53 @@ class PaymentAPITestCase(TestCase):
     def setUp(self):
         # Create needed instances from the previous test case
         self.admin = User.objects.create_user(
-            phone_number='0901234567',
-            full_name='Admin User',
+            phone_number='0911234567',  # Changed to avoid duplicate phone numbers
+            full_name='Admin User Payment',
             password='password123',
             user_type=User.UserType.ADMIN
         )
         
         self.staff = User.objects.create_user(
-            phone_number='0901234568',
-            full_name='Staff User',
+            phone_number='0911234568',  # Changed to avoid duplicate phone numbers
+            full_name='Staff User Payment',
             password='password123',
             user_type=User.UserType.STAFF
         )
         
         self.patient = User.objects.create_user(
-            phone_number='0901234570',
-            full_name='Patient User',
+            phone_number='0911234570',  # Changed to avoid duplicate phone numbers
+            full_name='Patient User Payment',
             password='password123',
             user_type=User.UserType.CUSTOMER
         )
         
         self.dentist = User.objects.create_user(
-            phone_number='0901234569',
-            full_name='Dentist User',
+            phone_number='0911234569',  # Changed to avoid duplicate phone numbers
+            full_name='Dentist User Payment',
             password='password123',
             user_type=User.UserType.DENTIST
         )
         
-        # Tạo hồ sơ bệnh án
+        # Tạo hồ sơ bệnh án riêng biệt cho test này
         self.medical_record = MedicalRecord.objects.create(
             patient=self.patient,
-            notes='Patient medical record'
+            notes='Patient medical record for payment test'
         )
         
         # Tạo dịch vụ nha khoa
         self.service = DentalService.objects.create(
-            name='Khám răng',
-            description='Kiểm tra sức khỏe răng miệng',
+            name='Khám răng payment',
+            description='Kiểm tra sức khỏe răng miệng cho payment test',
             price=200000
         )
         
-        # Tạo lần khám
+        # Tạo lần khám MỚI và riêng biệt
         self.examination = Examination.objects.create(
             medical_record=self.medical_record,
             dentist=self.dentist,
-            examination_date=date.today(),
-            diagnosis='Răng khỏe mạnh',
-            treatment_plan='Không cần điều trị'
+            examination_date=date.today() - timedelta(days=7),  # Ngày khác để tránh trùng lặp
+            diagnosis='Test cho payment',
+            treatment_plan='Payment test'
         )
         
         # Tạo dịch vụ đã sử dụng
@@ -209,16 +225,21 @@ class PaymentAPITestCase(TestCase):
             price=200000
         )
         
-        # Create an invoice
-        self.invoice = Invoice.objects.create(
-            examination=self.examination,
-            patient=self.patient,
-            staff=self.staff,
-            invoice_number='INV-000001',
-            status=Invoice.InvoiceStatus.PENDING,
-            discount=0,
-            tax=0
-        )
+        with patch('billing.models.Invoice.generate_invoice_number') as mock_generate:
+            # Trả về số hóa đơn duy nhất cho mỗi lần test
+            # Phần này sử dụng tên phương thức kiểm tra để đảm bảo tính duy nhất
+            mock_generate.return_value = f"INV-PAYMENT-{self._testMethodName}"
+            
+            # Bây giờ việc tạo hóa đơn sẽ sử dụng hàm tạo số hóa đơn đã được ghi đè
+            self.invoice = Invoice.objects.create(
+                examination=self.examination,
+                patient=self.patient,
+                staff=self.staff,
+                status=Invoice.InvoiceStatus.PENDING,
+                discount=0,
+                tax=0
+            )
+
         self.invoice.calculate_totals()
         
         # Create a payment

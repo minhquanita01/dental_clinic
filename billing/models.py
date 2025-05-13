@@ -3,10 +3,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from accounts.models import User
 from medical_records.models import Examination
+import datetime
 
 # Create your models here.
 class Invoice(models.Model):
-    """Model for storing invoice information."""
+    """Model sử dụng để lưu trữ thông tin hóa đơn."""
     
     class InvoiceStatus(models.TextChoices):
         PENDING = 'PENDING', _('Chờ thanh toán')
@@ -56,7 +57,7 @@ class Invoice(models.Model):
         return f"Hóa đơn: {self.invoice_number} - {self.patient.full_name}"
     
     def calculate_totals(self):
-        """Calculate all totals for the invoice."""
+        """Tính toán tổng tiền hóa đơn."""
         from medical_records.models import ExaminationService
         from pharmacy.models import PrescriptionItem
         
@@ -76,10 +77,31 @@ class Invoice(models.Model):
         self.total = self.subtotal + self.medicine_total - self.discount + self.tax
         
         self.save()
+    
+    def generate_invoice_number(self):
+        """Khởi tạo số hoá đơn duy nhất"""
+        today = datetime.date.today()
+        year = today.year
+        month = today.month
+        day = today.day
+        
+        # Lấy số hóa đơn đã tạo trong ngày hôm nay
+        today_start = datetime.datetime.combine(today, datetime.time.min)
+        count = Invoice.objects.filter(created_at__gte=today_start).count() + 1
+        
+        # Trả về số hóa đơn theo định dạng INV-YYYYMMDD-XXX với XXX là số thứ tự trong ngày, ví dụ: INV-20231001-001
+        return f"INV-{year}{month:02d}{day:02d}-{count:03d}"
+    
+    def save(self, *args, **kwargs):
+        # Khởi tạo số hóa đơn nếu chưa có
+        if not self.invoice_number:
+            self.invoice_number = self.generate_invoice_number()
+        
+        super().save(*args, **kwargs)
 
 
 class Payment(models.Model):
-    """Model for storing payment information."""
+    """Model sử dụng để lưu trữ thông tin thanh toán."""
     
     class PaymentMethod(models.TextChoices):
         CASH = 'CASH', _('Tiền mặt')
