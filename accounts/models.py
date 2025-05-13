@@ -71,7 +71,9 @@ class DentistProfile(models.Model):
         User, 
         on_delete=models.CASCADE, 
         related_name='dentist_profile',
-        limit_choices_to={'user_type': User.UserType.DENTIST}
+        limit_choices_to={'user_type': User.UserType.DENTIST},
+        primary_key=True,
+        verbose_name = "Nha sĩ"
     )
     specialization = models.CharField(gettext_lazy('Chuyên môn'), max_length=255, blank=True)
     

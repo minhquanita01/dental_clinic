@@ -175,6 +175,7 @@ cython_debug/
 
 
 generate_*.py
+migrations/
 
 # VS Code settings
 .vscode/
