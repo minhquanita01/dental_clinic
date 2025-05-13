@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+generate_*.py
+
+# VS Code settings
+.vscode/
